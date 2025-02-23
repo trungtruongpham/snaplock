@@ -9,7 +9,7 @@ import router from "next/router";
 export default function HomePage() {
   const searchParams = useSearchParams();
   const topic = searchParams.get("topic") || "all";
-  const { images, isLoading } = useImages(topic);
+  const { images } = useImages(topic);
 
   return (
     <div className="flex min-h-screen flex-col">
