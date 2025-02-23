@@ -1,14 +1,12 @@
 "use client";
 
-import { useSearchParams } from "next/navigation";
 import { TopicFilter } from "@/components/topic-filter";
 import { WallpaperGrid } from "@/components/wallpaper-grid";
 import { useImages } from "@/hooks/use-images";
 import router from "next/router";
 
 export default function HomePage() {
-  const searchParams = useSearchParams();
-  const topic = searchParams.get("topic") || "all";
+  const topic = "all";
   const { images } = useImages(topic);
 
   return (
