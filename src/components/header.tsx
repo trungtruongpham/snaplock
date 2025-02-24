@@ -14,12 +14,37 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { createClient } from "@/lib/supabase/client";
 import { User, LogOut, Settings } from "lucide-react";
+import { useEffect, useState } from "react";
 
-export async function Header() {
+export function Header() {
   const supabase = createClient();
-  const { data: user } = await supabase.auth.getUser();
+  const [user, setUser] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  console.log("user", user);
+  useEffect(() => {
+    async function getUser() {
+      const { data } = await supabase.auth.getUser();
+      setUser(data);
+      setIsLoading(false);
+    }
+
+    // Get initial user
+    getUser();
+
+    // Subscribe to auth state changes
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ? { user: session.user } : null);
+    });
+
+    // Cleanup subscription
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  if (isLoading) return null; // Or a loading spinner
 
   return (
     <header className="sticky top-0 z-50 w-full mx-auto border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
