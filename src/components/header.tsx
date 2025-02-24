@@ -65,11 +65,11 @@ export async function Header() {
                 >
                   <Avatar className="h-8 w-8">
                     <AvatarImage
-                      src={user.user_metadata?.avatar_url}
-                      alt={user.email ?? ""}
+                      src={user.user?.app_metadata?.avatar_url}
+                      alt={user.user?.email ?? ""}
                     />
                     <AvatarFallback>
-                      {user.email?.charAt(0).toUpperCase()}
+                      {user.user?.email?.charAt(0).toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
                 </Button>
@@ -78,10 +78,10 @@ export async function Header() {
                 <DropdownMenuLabel className="font-normal">
                   <div className="flex flex-col space-y-1">
                     <p className="text-sm font-medium leading-none">
-                      {user.user_metadata?.full_name || "User"}
+                      {user.user?.user_metadata?.full_name || "User"}
                     </p>
                     <p className="text-xs leading-none text-muted-foreground">
-                      {user.email}
+                      {user.user?.email}
                     </p>
                   </div>
                 </DropdownMenuLabel>
