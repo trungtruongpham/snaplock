@@ -13,18 +13,19 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { createClient } from "@/lib/supabase/client";
-import { User, LogOut, Settings } from "lucide-react";
+import { User } from "@supabase/supabase-js";
+import { LogOut, Settings, UserRoundPen } from "lucide-react";
 import { useEffect, useState } from "react";
 
 export function Header() {
   const supabase = createClient();
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     async function getUser() {
       const { data } = await supabase.auth.getUser();
-      setUser(data);
+      setUser(data ? data.user : null);
       setIsLoading(false);
     }
 
@@ -35,7 +36,7 @@ export function Header() {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ? { user: session.user } : null);
+      setUser(session?.user ?? null);
     });
 
     // Cleanup subscription
@@ -90,11 +91,11 @@ export function Header() {
                 >
                   <Avatar className="h-8 w-8">
                     <AvatarImage
-                      src={user.user?.app_metadata?.avatar_url}
-                      alt={user.user?.email ?? ""}
+                      src={user?.app_metadata?.avatar_url}
+                      alt={user?.email ?? ""}
                     />
                     <AvatarFallback>
-                      {user.user?.email?.charAt(0).toUpperCase()}
+                      {user?.email?.charAt(0).toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
                 </Button>
@@ -103,17 +104,17 @@ export function Header() {
                 <DropdownMenuLabel className="font-normal">
                   <div className="flex flex-col space-y-1">
                     <p className="text-sm font-medium leading-none">
-                      {user.user?.user_metadata?.full_name || "User"}
+                      {user?.user_metadata?.full_name || "User"}
                     </p>
                     <p className="text-xs leading-none text-muted-foreground">
-                      {user.user?.email}
+                      {user?.email}
                     </p>
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem asChild>
                   <Link href="/profile" className="cursor-pointer">
-                    <User className="mr-2 h-4 w-4" />
+                    <UserRoundPen className="mr-2 h-4 w-4" />
                     Profile
                   </Link>
                 </DropdownMenuItem>
