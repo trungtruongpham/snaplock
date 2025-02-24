@@ -12,13 +12,14 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useUser } from "@/hooks/use-user";
 import { createClient } from "@/lib/supabase/client";
 import { User, LogOut, Settings } from "lucide-react";
 
-export function Header() {
-  const { user } = useUser();
+export async function Header() {
   const supabase = createClient();
+  const { data: user } = await supabase.auth.getUser();
+
+  console.log("user", user);
 
   return (
     <header className="sticky top-0 z-50 w-full mx-auto border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">

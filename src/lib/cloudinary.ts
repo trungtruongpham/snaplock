@@ -13,14 +13,9 @@ export async function getImagesFromFolder({
   maxResults?: number;
 }): Promise<CloudinaryImage[]> {
   try {
-    // Use absolute URL with origin
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-    const response = await fetch(
-      `${baseUrl}/api/cloudinary?folder=${folderPath}`
-    );
+    const response = await fetch(`/api/cloudinary?folder=${folderPath}`);
 
     if (!response.ok) throw new Error("Failed to fetch images");
-    console.log(response);
 
     const resources = await response.json();
     return resources.map((resource: CloudinaryImage) => ({
