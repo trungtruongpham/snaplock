@@ -7,37 +7,51 @@ import { createClient } from "@/lib/supabase/client";
 interface UserContextType {
   user: User | null;
   isLoading: boolean;
+  error: Error | null;
 }
 
 const UserContext = createContext<UserContextType>({
   user: null,
   isLoading: true,
+  error: null,
 });
 
-export function UserProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+export function UserProvider({
+  children,
+  initialUser = null,
+}: {
+  children: React.ReactNode;
+  initialUser?: User | null;
+}) {
+  const [user, setUser] = useState<User | null>(initialUser);
+  const [isLoading, setIsLoading] = useState(!initialUser);
+  const [error, setError] = useState<Error | null>(null);
   const supabase = createClient();
 
   useEffect(() => {
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
-      setIsLoading(false);
-    });
-
-    // Listen for auth changes
+    // Subscribe to auth state changes
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
+      setIsLoading(false);
     });
 
-    return () => subscription.unsubscribe();
-  }, [user, supabase.auth]);
+    // Only fetch initial session if we don't have an initialUser
+    if (!initialUser) {
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        setUser(session?.user ?? null);
+        setIsLoading(false);
+      });
+    }
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [initialUser]);
 
   return (
-    <UserContext.Provider value={{ user, isLoading }}>
+    <UserContext.Provider value={{ user, isLoading, error }}>
       {children}
     </UserContext.Provider>
   );

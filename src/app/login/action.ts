@@ -17,7 +17,7 @@ export async function login(formData: FormData) {
   const formInput = loginSchema.safeParse({ email, password });
 
   if (!formInput.success) {
-    redirect("/error");
+    return { error: "Invalid input" };
   }
 
   const supabase = await createClient();
@@ -35,6 +35,28 @@ export async function login(formData: FormData) {
   redirect("/");
 }
 
+export async function signInWithGoogle() {
+  const supabase = await createClient();
+
+  // Log the redirect URL to see what's being sent
+  console.log(`Redirect URL: ${process.env.NEXT_PUBLIC_APP_URL}/auth/callback`);
+
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider: "google",
+    options: {
+      redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback`,
+    },
+  });
+
+  console.log(`Data: ${JSON.stringify(data)}`);
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  return { url: data.url };
+}
+
 export async function signup(formData: FormData) {
   const supabase = await createClient();
 
@@ -48,7 +70,7 @@ export async function signup(formData: FormData) {
   const { error } = await supabase.auth.signUp(data);
 
   if (error) {
-    redirect("/error");
+    return { error: error.message };
   }
 
   revalidatePath("/", "layout");
