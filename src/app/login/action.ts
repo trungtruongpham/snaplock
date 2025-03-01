@@ -38,9 +38,6 @@ export async function login(formData: FormData) {
 export async function signInWithGoogle() {
   const supabase = await createClient();
 
-  // Log the redirect URL to see what's being sent
-  console.log(`Redirect URL: ${process.env.NEXT_PUBLIC_APP_URL}/auth/callback`);
-
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: "google",
     options: {

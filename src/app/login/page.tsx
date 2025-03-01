@@ -84,17 +84,24 @@ export default function LoginPage() {
 
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
-      if (
-        event.origin === window.location.origin &&
-        event.data === "auth-complete"
-      ) {
-        window.location.reload();
+      if (event.origin === window.location.origin) {
+        if (event.data === "auth-complete") {
+          // Redirect to home page after successful authentication
+          window.location.href = "/";
+        } else if (event.data === "auth-error") {
+          toast({
+            variant: "destructive",
+            title: "Authentication Error",
+            description:
+              "There was an error during authentication. Please try again.",
+          });
+        }
       }
     };
 
     window.addEventListener("message", handleMessage);
     return () => window.removeEventListener("message", handleMessage);
-  }, []);
+  }, [toast]);
 
   return (
     <div className="min-h-screen flex items-center justify-center px-4">
