@@ -73,6 +73,7 @@ export default function LoginPage() {
         }, 500);
       }
     } catch (error) {
+      console.error("Error during Google sign-in:", error);
       toast({
         variant: "destructive",
         title: "Error",

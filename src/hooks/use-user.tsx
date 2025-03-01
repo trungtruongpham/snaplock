@@ -25,7 +25,7 @@ export function UserProvider({
 }) {
   const [user, setUser] = useState<User | null>(initialUser);
   const [isLoading, setIsLoading] = useState(!initialUser);
-  const [error, setError] = useState<Error | null>(null);
+  const [error] = useState<Error | null>(null);
   const supabase = createClient();
 
   useEffect(() => {
@@ -39,8 +39,8 @@ export function UserProvider({
 
     // Only fetch initial session if we don't have an initialUser
     if (!initialUser) {
-      supabase.auth.getSession().then(({ data: { session } }) => {
-        setUser(session?.user ?? null);
+      supabase.auth.getUser().then(({ data: { user } }) => {
+        setUser(user ?? null);
         setIsLoading(false);
       });
     }
