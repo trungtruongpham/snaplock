@@ -13,10 +13,14 @@ import {
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import Link from "next/link";
+import { createClient } from "@/lib/supabase/client";
+import { useRouter } from "next/navigation";
 
 export default function LoginPage() {
   const [isPending, startTransition] = useTransition();
   const { toast } = useToast();
+  const supabase = createClient();
+  const router = useRouter();
 
   async function onSubmit(formData: FormData) {
     startTransition(async () => {
@@ -35,6 +39,8 @@ export default function LoginPage() {
         title: "Success",
         description: "You have been logged in successfully",
       });
+
+      // Redirect will happen in the server action
     });
   }
 
@@ -68,7 +74,9 @@ export default function LoginPage() {
         const checkPopup = setInterval(() => {
           if (!popup || popup.closed) {
             clearInterval(checkPopup);
-            window.location.reload(); // Refresh to update auth state
+
+            // Check if user is authenticated after popup closes
+            checkUserAndRedirect();
           }
         }, 500);
       }
@@ -82,26 +90,34 @@ export default function LoginPage() {
     }
   }
 
+  // Function to check if user is authenticated and redirect
+  async function checkUserAndRedirect() {
+    const { data } = await supabase.auth.getUser();
+    if (data.user) {
+      router.push("/");
+    }
+  }
+
   useEffect(() => {
-    const handleMessage = (event: MessageEvent) => {
-      console.log("event", event);
-      console.log("window.location.origin", window.location.origin);
+    const handleMessage = async (event: MessageEvent) => {
       if (event.origin === window.location.origin) {
-        // Redirect to home page after successful authentication
-        window.location.href = "/";
-      } else {
-        toast({
-          variant: "destructive",
-          title: "Authentication Error",
-          description:
-            "There was an error during authentication. Please try again.",
-        });
+        if (event.data === "auth-complete") {
+          // Check if user is authenticated before redirecting
+          await checkUserAndRedirect();
+        } else if (event.data === "auth-error") {
+          toast({
+            variant: "destructive",
+            title: "Authentication Error",
+            description:
+              "There was an error during authentication. Please try again.",
+          });
+        }
       }
     };
 
     window.addEventListener("message", handleMessage);
     return () => window.removeEventListener("message", handleMessage);
-  }, [toast]);
+  }, [toast, router]);
 
   return (
     <div className="min-h-screen flex items-center justify-center px-4">
