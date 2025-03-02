@@ -7,9 +7,9 @@ import { Footer } from "@/components/footer";
 import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = {
-  title: "SnapLock",
+  title: "SnapsLock",
   description:
-    "SnapLock is a wallpaper app that allows you to lock your phone with a wallpaper.",
+    "SnapsLock is a wallpaper app that allows you to lock your phone with a wallpaper.",
 };
 
 export default async function RootLayout({

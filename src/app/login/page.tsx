@@ -84,18 +84,18 @@ export default function LoginPage() {
 
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
+      console.log("event", event);
+      console.log("window.location.origin", window.location.origin);
       if (event.origin === window.location.origin) {
-        if (event.data === "auth-complete") {
-          // Redirect to home page after successful authentication
-          window.location.href = "/";
-        } else if (event.data === "auth-error") {
-          toast({
-            variant: "destructive",
-            title: "Authentication Error",
-            description:
-              "There was an error during authentication. Please try again.",
-          });
-        }
+        // Redirect to home page after successful authentication
+        window.location.href = "/";
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Authentication Error",
+          description:
+            "There was an error during authentication. Please try again.",
+        });
       }
     };
 

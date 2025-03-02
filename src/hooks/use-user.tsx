@@ -48,7 +48,7 @@ export function UserProvider({
     return () => {
       subscription.unsubscribe();
     };
-  }, [initialUser]);
+  }, [initialUser, supabase.auth]);
 
   return (
     <UserContext.Provider value={{ user, isLoading, error }}>

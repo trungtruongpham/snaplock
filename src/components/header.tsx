@@ -24,7 +24,7 @@ export function Header() {
     <header className="sticky top-0 z-50 w-full mx-auto border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container mx-auto px-4 flex h-16 items-center place-content-between">
         <Link href="/" className="font-bold text-xl">
-          SnapLock
+          SnapsLock
         </Link>
         {/* <div className="flex-1 flex justify-center">
           <NavigationMenu>
