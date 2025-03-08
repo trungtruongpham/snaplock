@@ -213,6 +213,10 @@ export default function LoginPage() {
                   }, 1000);
                 }
               } catch (urlError) {
+                console.log(
+                  "Cross-origin error when trying to access popup URL, this is expected with url: " +
+                    urlError
+                );
                 // Cross-origin error when trying to access popup URL, this is expected
                 // Just continue polling
               }
