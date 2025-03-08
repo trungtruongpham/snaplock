@@ -1,6 +1,6 @@
 "use client";
 
-import { useTransition, useEffect } from "react";
+import { useTransition, useEffect, useCallback } from "react";
 import { login, signInWithGoogle } from "./action";
 import { Button } from "@/components/ui/button";
 import {
@@ -44,6 +44,20 @@ export default function LoginPage() {
     });
   }
 
+  // Function to check if user is authenticated and redirect
+  const checkUserAndRedirect = useCallback(async () => {
+    console.log("Checking user authentication status...");
+    const { data } = await supabase.auth.getUser();
+    console.log(
+      "Auth check result:",
+      data.user ? "User authenticated" : "No user found"
+    );
+    if (data.user) {
+      console.log("Redirecting authenticated user to home page");
+      router.push("/");
+    }
+  }, [supabase, router]);
+
   async function handleGoogleSignIn() {
     try {
       const width = 500;
@@ -51,9 +65,11 @@ export default function LoginPage() {
       const left = window.screenX + (window.outerWidth - width) / 2;
       const top = window.screenY + (window.outerHeight - height) / 2.5;
 
+      console.log("Initiating Google sign-in process");
       const result = await signInWithGoogle();
 
       if (result?.error) {
+        console.error("Error from signInWithGoogle:", result.error);
         toast({
           variant: "destructive",
           title: "Error",
@@ -63,6 +79,7 @@ export default function LoginPage() {
       }
 
       if (result?.url) {
+        console.log("Opening Google sign-in popup with URL:", result.url);
         // Open popup
         const popup = window.open(
           result.url,
@@ -75,12 +92,14 @@ export default function LoginPage() {
           try {
             // This will throw an error if the popup is closed
             if (!popup || popup.closed) {
+              console.log("Popup detected as closed");
               clearInterval(checkPopup);
               // Check if user is authenticated after popup closes
               checkUserAndRedirect();
             }
-          } catch (e) {
+          } catch {
             // If we can't access the popup, assume it's closed
+            console.log("Cannot access popup, assuming it's closed");
             clearInterval(checkPopup);
             checkUserAndRedirect();
           }
@@ -96,23 +115,19 @@ export default function LoginPage() {
     }
   }
 
-  // Function to check if user is authenticated and redirect
-  async function checkUserAndRedirect() {
-    const { data } = await supabase.auth.getUser();
-    if (data.user) {
-      router.push("/");
-    }
-  }
-
   useEffect(() => {
+    console.log("Setting up message event listener");
+
     const handleMessage = async (event: MessageEvent) => {
       console.log("Received message:", event.data, "from", event.origin);
 
       // Accept messages from any origin for better compatibility
       if (event.data === "auth-complete") {
+        console.log("Auth complete message received, checking user status");
         // Check if user is authenticated before redirecting
         await checkUserAndRedirect();
       } else if (event.data === "auth-error") {
+        console.error("Auth error message received");
         toast({
           variant: "destructive",
           title: "Authentication Error",
@@ -123,8 +138,11 @@ export default function LoginPage() {
     };
 
     window.addEventListener("message", handleMessage);
-    return () => window.removeEventListener("message", handleMessage);
-  }, [toast, router]);
+    return () => {
+      console.log("Cleaning up message event listener");
+      window.removeEventListener("message", handleMessage);
+    };
+  }, [toast, router, checkUserAndRedirect]);
 
   return (
     <div className="min-h-screen flex items-center justify-center px-4">
