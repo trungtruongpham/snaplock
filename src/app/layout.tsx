@@ -24,8 +24,6 @@ export default async function RootLayout({
   const supabase = await createClient();
   const { data } = await supabase.auth.getUser();
 
-  console.log("data", data);
-
   return (
     <html lang="en" suppressHydrationWarning>
       <body>

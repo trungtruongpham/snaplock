@@ -32,7 +32,6 @@ function WallpaperCard({
         description: "Image downloaded successfully",
       });
     } catch (error) {
-      console.error("Error downloading image:", error);
       toast({
         variant: "destructive",
         title: "Error",
@@ -109,7 +108,7 @@ export function WallpaperGrid({ images }: { images: CloudinaryImage[] }) {
             key={i}
             cloudinaryImage={image}
             isLiked={false}
-            onLike={() => console.log("Liked")}
+            onLike={() => {}}
           />
         ))
       )}
