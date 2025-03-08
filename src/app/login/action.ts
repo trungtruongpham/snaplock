@@ -38,12 +38,24 @@ export async function login(formData: FormData) {
 export async function signInWithGoogle() {
   const supabase = await createClient();
 
+  // Get the current domain for the redirectTo URL
+  // This ensures we use the same domain for the callback that the user is currently on
+  let redirectUrl = `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback`;
+
+  // If we're in a browser environment, use the current origin
+  if (typeof window !== "undefined") {
+    redirectUrl = `${window.location.origin}/auth/callback`;
+  }
+
+  console.log(`Using redirect URL: ${redirectUrl}`);
+
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: "google",
     options: {
-      redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback`,
+      redirectTo: redirectUrl,
       queryParams: {
         prompt: "select_account", // Force account selection even if already logged in
+        access_type: "offline", // Request a refresh token
       },
       skipBrowserRedirect: true, // Important: Let us handle the redirect in the client
     },

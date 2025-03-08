@@ -4,11 +4,14 @@ import { createClient } from "@/lib/supabase/server";
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
+  const referrer = request.headers.get("referer") || origin;
 
   console.log(
     "Auth callback received with code:",
     code ? "present" : "missing"
   );
+  console.log("Origin:", origin);
+  console.log("Referrer:", referrer);
 
   if (code) {
     const supabase = await createClient();
@@ -26,14 +29,44 @@ export async function GET(request: Request) {
               function closeAndNotify() {
                 console.log("Auth successful, attempting to notify parent and close");
                 
-                // Send message to parent window first
+                // Try to send message to parent window with wildcard origin for cross-domain support
                 if (window.opener) {
                   try {
-                    window.opener.postMessage('auth-complete', '*');
-                    console.log("Sent auth-complete message to opener");
+                    // Try to send to specific origins that might be relevant
+                    const possibleOrigins = [
+                      window.location.origin,
+                      "${process.env.NEXT_PUBLIC_APP_URL || ""}",
+                      // Add your custom domain here if known
+                      "https://snapslock.com", 
+                      // Fallback to wildcard
+                      "*"
+                    ];
+                    
+                    for (const targetOrigin of possibleOrigins) {
+                      if (targetOrigin) {
+                        try {
+                          console.log("Attempting to send message to:", targetOrigin);
+                          window.opener.postMessage('auth-complete', targetOrigin);
+                        } catch (e) {
+                          console.error('Failed to send message to ' + targetOrigin, e);
+                        }
+                      }
+                    }
+                    
+                    console.log("Sent auth-complete messages to possible origins");
                   } catch (e) {
-                    console.error('Failed to send message to opener:', e);
+                    console.error('Failed to send messages:', e);
                   }
+                  
+                  // Store auth success in localStorage as a fallback mechanism
+                  try {
+                    localStorage.setItem('auth_success', 'true');
+                    localStorage.setItem('auth_timestamp', Date.now().toString());
+                  } catch (e) {
+                    console.error('Failed to set localStorage:', e);
+                  }
+                } else {
+                  console.log("No opener found, cannot send postMessage");
                 }
                 
                 // Try to close the window
@@ -47,12 +80,16 @@ export async function GET(request: Request) {
                 setTimeout(function() {
                   console.log("Window still open, redirecting to home");
                   window.location.href = '${origin}';
-                }, 1000);
+                }, 1500);
               }
               
               // Run our close function when the page loads
-              document.addEventListener('DOMContentLoaded', closeAndNotify);
-              // Also try immediately in case DOMContentLoaded already fired
+              if (document.readyState === 'complete') {
+                closeAndNotify();
+              } else {
+                document.addEventListener('DOMContentLoaded', closeAndNotify);
+              }
+              // Also try immediately
               closeAndNotify();
             </script>
           </head>
@@ -82,14 +119,44 @@ export async function GET(request: Request) {
           function closeAndNotifyError() {
             console.log("Auth failed, attempting to notify parent and close");
             
-            // Send error message to parent window first
+            // Try to send message to parent window with wildcard origin for cross-domain support
             if (window.opener) {
               try {
-                window.opener.postMessage('auth-error', '*');
-                console.log("Sent auth-error message to opener");
+                // Try to send to specific origins that might be relevant
+                const possibleOrigins = [
+                  window.location.origin,
+                  "${process.env.NEXT_PUBLIC_APP_URL || ""}",
+                  // Add your custom domain here if known
+                  "https://yourdomain.com", 
+                  // Fallback to wildcard
+                  "*"
+                ];
+                
+                for (const targetOrigin of possibleOrigins) {
+                  if (targetOrigin) {
+                    try {
+                      console.log("Attempting to send error message to:", targetOrigin);
+                      window.opener.postMessage('auth-error', targetOrigin);
+                    } catch (e) {
+                      console.error('Failed to send error message to ' + targetOrigin, e);
+                    }
+                  }
+                }
+                
+                console.log("Sent auth-error messages to possible origins");
               } catch (e) {
-                console.error('Failed to send error message to opener:', e);
+                console.error('Failed to send error messages:', e);
               }
+              
+              // Store auth error in localStorage as a fallback mechanism
+              try {
+                localStorage.setItem('auth_error', 'true');
+                localStorage.setItem('auth_timestamp', Date.now().toString());
+              } catch (e) {
+                console.error('Failed to set localStorage:', e);
+              }
+            } else {
+              console.log("No opener found, cannot send postMessage");
             }
             
             // Try to close the window
@@ -103,12 +170,16 @@ export async function GET(request: Request) {
             setTimeout(function() {
               console.log("Window still open, redirecting to login");
               window.location.href = '${origin}/login';
-            }, 1000);
+            }, 1500);
           }
           
           // Run our close function when the page loads
-          document.addEventListener('DOMContentLoaded', closeAndNotifyError);
-          // Also try immediately in case DOMContentLoaded already fired
+          if (document.readyState === 'complete') {
+            closeAndNotifyError();
+          } else {
+            document.addEventListener('DOMContentLoaded', closeAndNotifyError);
+          }
+          // Also try immediately
           closeAndNotifyError();
         </script>
       </head>

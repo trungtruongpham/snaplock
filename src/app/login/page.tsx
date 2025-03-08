@@ -1,6 +1,6 @@
 "use client";
 
-import { useTransition, useEffect, useCallback, useState } from "react";
+import { useTransition, useEffect, useCallback, useState, useRef } from "react";
 import { login, signInWithGoogle } from "./action";
 import { Button } from "@/components/ui/button";
 import {
@@ -22,6 +22,8 @@ export default function LoginPage() {
   const { toast } = useToast();
   const supabase = createClient();
   const router = useRouter();
+  const popupRef = useRef<Window | null>(null);
+  const checkIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   async function onSubmit(formData: FormData) {
     startTransition(async () => {
@@ -68,9 +70,65 @@ export default function LoginPage() {
     }
   }, [supabase, router, toast]);
 
+  // Check localStorage for auth status as a fallback mechanism
+  const checkLocalStorageAuth = useCallback(() => {
+    try {
+      const authSuccess = localStorage.getItem("auth_success");
+      const authError = localStorage.getItem("auth_error");
+      const timestamp = localStorage.getItem("auth_timestamp");
+
+      // Only consider recent auth events (within last 30 seconds)
+      const isRecent = timestamp && Date.now() - parseInt(timestamp) < 30000;
+
+      if (authSuccess && isRecent) {
+        console.log("Found recent auth success in localStorage");
+        localStorage.removeItem("auth_success");
+        localStorage.removeItem("auth_timestamp");
+        checkUserAndRedirect();
+        return true;
+      } else if (authError && isRecent) {
+        console.log("Found recent auth error in localStorage");
+        localStorage.removeItem("auth_error");
+        localStorage.removeItem("auth_timestamp");
+        toast({
+          variant: "destructive",
+          title: "Authentication Error",
+          description:
+            "There was an error during authentication. Please try again.",
+        });
+        setIsGoogleAuthPending(false);
+        return true;
+      }
+    } catch (error) {
+      console.error("Error checking localStorage:", error);
+    }
+    return false;
+  }, [checkUserAndRedirect, toast]);
+
+  // Clean up any existing popup check interval
+  const cleanupPopupCheck = useCallback(() => {
+    if (checkIntervalRef.current) {
+      clearInterval(checkIntervalRef.current);
+      checkIntervalRef.current = null;
+    }
+  }, []);
+
   async function handleGoogleSignIn() {
     try {
       setIsGoogleAuthPending(true);
+
+      // Clean up any existing popup check
+      cleanupPopupCheck();
+
+      // Close any existing popup
+      if (popupRef.current && !popupRef.current.closed) {
+        try {
+          popupRef.current.close();
+        } catch (error) {
+          console.error("Error closing existing popup:", error);
+        }
+      }
+
       const width = 500;
       const height = 600;
       const left = window.screenX + (window.outerWidth - width) / 2;
@@ -93,13 +151,13 @@ export default function LoginPage() {
       if (result?.url) {
         console.log("Opening Google sign-in popup with URL:", result.url);
         // Open popup
-        const popup = window.open(
+        popupRef.current = window.open(
           result.url,
           "Google Sign In",
           `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes,status=yes`
         );
 
-        if (!popup) {
+        if (!popupRef.current) {
           console.error(
             "Failed to open popup. It may have been blocked by the browser."
           );
@@ -113,24 +171,85 @@ export default function LoginPage() {
         }
 
         // Poll for changes in the popup
-        const checkPopup = setInterval(() => {
+        checkIntervalRef.current = setInterval(() => {
           try {
             // This will throw an error if the popup is closed
-            if (!popup || popup.closed) {
+            if (!popupRef.current || popupRef.current.closed) {
               console.log("Popup detected as closed");
-              clearInterval(checkPopup);
-              // Check if user is authenticated after popup closes
-              checkUserAndRedirect();
+              cleanupPopupCheck();
+
+              // First check localStorage as a fallback
+              if (!checkLocalStorageAuth()) {
+                // If no localStorage data, check user auth status
+                checkUserAndRedirect();
+              }
+
               setIsGoogleAuthPending(false);
+            } else {
+              // Try to detect if we're on the success page by checking the URL
+              try {
+                const popupUrl = popupRef.current.location.href;
+                console.log("Popup URL:", popupUrl);
+
+                // If we can access the URL and it contains our callback path
+                if (popupUrl.includes("/auth/callback")) {
+                  console.log(
+                    "Detected callback URL in popup, will check auth status"
+                  );
+                  // Wait a moment for the session to be established
+                  setTimeout(() => {
+                    cleanupPopupCheck();
+                    checkUserAndRedirect();
+                    setIsGoogleAuthPending(false);
+
+                    // Try to close the popup
+                    try {
+                      if (popupRef.current && !popupRef.current.closed) {
+                        popupRef.current.close();
+                      }
+                    } catch (e) {
+                      console.error("Error closing popup:", e);
+                    }
+                  }, 1000);
+                }
+              } catch (urlError) {
+                // Cross-origin error when trying to access popup URL, this is expected
+                // Just continue polling
+              }
             }
           } catch (error) {
             // If we can't access the popup, assume it's closed
             console.log("Cannot access popup, assuming it's closed:", error);
-            clearInterval(checkPopup);
-            checkUserAndRedirect();
+            cleanupPopupCheck();
+
+            // First check localStorage as a fallback
+            if (!checkLocalStorageAuth()) {
+              // If no localStorage data, check user auth status
+              checkUserAndRedirect();
+            }
+
             setIsGoogleAuthPending(false);
           }
         }, 500);
+
+        // Set a timeout to stop checking after 5 minutes (prevent infinite polling)
+        setTimeout(() => {
+          if (checkIntervalRef.current) {
+            console.log("Timeout reached, stopping popup check");
+            cleanupPopupCheck();
+
+            // If still pending, reset state and show error
+            if (isGoogleAuthPending) {
+              setIsGoogleAuthPending(false);
+              toast({
+                variant: "destructive",
+                title: "Authentication Timeout",
+                description:
+                  "The authentication process took too long. Please try again.",
+              });
+            }
+          }
+        }, 5 * 60 * 1000); // 5 minutes
       }
     } catch (error) {
       console.error("Error during Google sign-in:", error);
@@ -172,11 +291,21 @@ export default function LoginPage() {
     // Check if user is already authenticated on page load
     checkUserAndRedirect();
 
+    // Also check localStorage for auth status (for cross-origin fallback)
+    checkLocalStorageAuth();
+
     return () => {
       console.log("Cleaning up message event listener");
       window.removeEventListener("message", handleMessage);
+      cleanupPopupCheck();
     };
-  }, [toast, router, checkUserAndRedirect]);
+  }, [
+    toast,
+    router,
+    checkUserAndRedirect,
+    checkLocalStorageAuth,
+    cleanupPopupCheck,
+  ]);
 
   return (
     <div className="min-h-screen flex items-center justify-center px-4">
