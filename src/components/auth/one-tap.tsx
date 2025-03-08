@@ -60,12 +60,19 @@ const OneTapComponent = ({
   const [scriptLoaded, setScriptLoaded] = useState(false);
 
   // generate nonce to use for google id token sign-in
-  const generateNonce = async (): Promise<string> => {
-    // Generate a random nonce
+  const generateNonce = async (): Promise<string[]> => {
     const nonce = btoa(
       String.fromCharCode(...crypto.getRandomValues(new Uint8Array(32)))
     );
-    return nonce;
+    const encoder = new TextEncoder();
+    const encodedNonce = encoder.encode(nonce);
+    const hashBuffer = await crypto.subtle.digest("SHA-256", encodedNonce);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const hashedNonce = hashArray
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("");
+
+    return [nonce, hashedNonce];
   };
 
   useEffect(() => {
@@ -98,7 +105,7 @@ const OneTapComponent = ({
 
       try {
         // Generate a nonce - this is the original nonce that will be used for verification
-        const nonce = await generateNonce();
+        const [nonce, hashedNonce] = await generateNonce();
 
         // @ts-expect-error - google is defined globally by the script
         google.accounts.id.initialize({
@@ -146,7 +153,7 @@ const OneTapComponent = ({
           auto_select: true,
           cancel_on_tap_outside: false,
           context: "signin",
-          nonce: nonce, // Use the same nonce for initialization
+          nonce: hashedNonce, // Use the same nonce for initialization
           use_fedcm_for_prompt: true,
         });
 
