@@ -10,6 +10,10 @@ export const metadata: Metadata = {
   title: "SnapsLock",
   description:
     "SnapsLock is a wallpaper app that allows you to lock your phone with a wallpaper.",
+  icons: {
+    icon: "/icon.png",
+    apple: "/icon.png",
+  },
 };
 
 export default async function RootLayout({
@@ -19,6 +23,8 @@ export default async function RootLayout({
 }) {
   const supabase = await createClient();
   const { data } = await supabase.auth.getUser();
+
+  console.log("data", data);
 
   return (
     <html lang="en" suppressHydrationWarning>

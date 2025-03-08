@@ -72,10 +72,16 @@ export default function LoginPage() {
 
         // Poll for changes in the popup
         const checkPopup = setInterval(() => {
-          if (!popup || popup.closed) {
+          try {
+            // This will throw an error if the popup is closed
+            if (!popup || popup.closed) {
+              clearInterval(checkPopup);
+              // Check if user is authenticated after popup closes
+              checkUserAndRedirect();
+            }
+          } catch (e) {
+            // If we can't access the popup, assume it's closed
             clearInterval(checkPopup);
-
-            // Check if user is authenticated after popup closes
             checkUserAndRedirect();
           }
         }, 500);
@@ -100,18 +106,19 @@ export default function LoginPage() {
 
   useEffect(() => {
     const handleMessage = async (event: MessageEvent) => {
-      if (event.origin === window.location.origin) {
-        if (event.data === "auth-complete") {
-          // Check if user is authenticated before redirecting
-          await checkUserAndRedirect();
-        } else if (event.data === "auth-error") {
-          toast({
-            variant: "destructive",
-            title: "Authentication Error",
-            description:
-              "There was an error during authentication. Please try again.",
-          });
-        }
+      console.log("Received message:", event.data, "from", event.origin);
+
+      // Accept messages from any origin for better compatibility
+      if (event.data === "auth-complete") {
+        // Check if user is authenticated before redirecting
+        await checkUserAndRedirect();
+      } else if (event.data === "auth-error") {
+        toast({
+          variant: "destructive",
+          title: "Authentication Error",
+          description:
+            "There was an error during authentication. Please try again.",
+        });
       }
     };
 
