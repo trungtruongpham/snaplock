@@ -42,12 +42,19 @@ export async function signInWithGoogle() {
     provider: "google",
     options: {
       redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback`,
+      queryParams: {
+        prompt: "select_account", // Force account selection even if already logged in
+      },
+      skipBrowserRedirect: true, // Important: Let us handle the redirect in the client
     },
   });
 
-  console.log(`Data: ${JSON.stringify(data)}`);
+  console.log(
+    `Google sign-in initiated, URL: ${data?.url ? "generated" : "missing"}`
+  );
 
   if (error) {
+    console.error(`Google sign-in error: ${error.message}`);
     return { error: error.message };
   }
 
