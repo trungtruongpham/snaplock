@@ -139,7 +139,7 @@ const OneTapComponent = ({
               toast({
                 variant: "destructive",
                 title: "Sign-in Error",
-                description: "An unexpected error occurred. Please try again.",
+                description: `An unexpected error occurred ${error}. Please try again.`,
               });
             }
           },
@@ -172,7 +172,7 @@ const OneTapComponent = ({
             toast({
               variant: "destructive",
               title: "Error",
-              description: "Failed to show Google Sign-In prompt",
+              description: `Failed to show Google Sign-In prompt. ${error}`,
             });
           }
         };
@@ -185,8 +185,7 @@ const OneTapComponent = ({
         toast({
           variant: "destructive",
           title: "Authentication Error",
-          description:
-            "Failed to initialize Google sign-in. Please try again later.",
+          description: `Failed to initialize Google sign-in. ${error}`,
         });
       }
     };

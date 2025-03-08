@@ -35,7 +35,7 @@ function WallpaperCard({
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Failed to download image",
+        description: `Failed to download image. ${error}`,
       });
     } finally {
       setIsDownloading(false);

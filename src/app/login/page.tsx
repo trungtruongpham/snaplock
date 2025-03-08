@@ -62,7 +62,7 @@ function LoginForm() {
         toast({
           variant: "destructive",
           title: "Error",
-          description: "Failed to check authentication status",
+          description: `Failed to check authentication status. ${error}`,
         });
       }
     };
