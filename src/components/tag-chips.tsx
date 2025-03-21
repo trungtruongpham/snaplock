@@ -11,18 +11,25 @@ interface TagChipsProps {
   selectedTags: string[];
   onTagToggle: (tag: string) => void;
   className?: string;
+  initialTags?: Tag[];
 }
 
 export function TagChips({
   selectedTags,
   onTagToggle,
   className,
+  initialTags = [],
 }: TagChipsProps) {
-  const [tags, setTags] = useState<Tag[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [tags, setTags] = useState<Tag[]>(initialTags);
+  const [isLoading, setIsLoading] = useState(!initialTags.length);
   const { toast } = useToast();
 
   useEffect(() => {
+    // If we have initial tags, don't fetch
+    if (initialTags.length > 0) {
+      return;
+    }
+
     async function fetchTags() {
       setIsLoading(true);
       try {
@@ -44,7 +51,7 @@ export function TagChips({
     }
 
     fetchTags();
-  }, [toast, selectedTags]);
+  }, [toast, initialTags]);
 
   const handleTagClick = (tagSlug: string) => {
     onTagToggle(tagSlug);

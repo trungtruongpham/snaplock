@@ -1,6 +1,4 @@
-"use client";
-
-import { Button } from "@/components/ui/button";
+import { Metadata } from "next";
 import {
   Card,
   CardContent,
@@ -8,11 +6,18 @@ import {
   CardHeader,
 } from "@/components/ui/card";
 import { XCircle } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { GoHomeButton } from "@/components/navigation/GoHomeButton";
+
+export const metadata: Metadata = {
+  title: "Error | SnapLock",
+  description: "Something went wrong. We apologize for the inconvenience.",
+  robots: {
+    index: false,
+    follow: false,
+  },
+};
 
 export default function ErrorPage() {
-  const router = useRouter();
-
   return (
     <div className="h-screen w-full flex items-center justify-center p-4">
       <Card className="max-w-md w-full">
@@ -28,9 +33,7 @@ export default function ErrorPage() {
           </p>
         </CardContent>
         <CardFooter>
-          <Button onClick={() => router.push("/")} variant="default">
-            Return Home
-          </Button>
+          <GoHomeButton variant="default" />
         </CardFooter>
       </Card>
     </div>
