@@ -48,10 +48,9 @@ export async function updateSession(request: NextRequest) {
   // IMPORTANT: DO NOT REMOVE auth.getUser()
 
   const {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     data: { user },
   } = await supabase.auth.getUser();
-
-  console.log("user", user);
 
   // if (
   //   !user &&

@@ -64,7 +64,10 @@ export function Header() {
                 >
                   <Avatar className="h-8 w-8">
                     <AvatarImage
-                      src={user?.app_metadata?.avatar_url}
+                      src={
+                        user?.user_metadata?.avatar_url ||
+                        user?.app_metadata?.avatar_url
+                      }
                       alt={user?.email ?? ""}
                     />
                     <AvatarFallback>
@@ -77,7 +80,9 @@ export function Header() {
                 <DropdownMenuLabel className="font-normal">
                   <div className="flex flex-col space-y-1">
                     <p className="text-sm font-medium leading-none">
-                      {user?.user_metadata?.full_name || "User"}
+                      {user?.user_metadata?.display_name ||
+                        user?.user_metadata?.full_name ||
+                        "User"}
                     </p>
                     <p className="text-xs leading-none text-muted-foreground">
                       {user?.email}
