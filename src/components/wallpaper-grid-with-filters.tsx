@@ -5,8 +5,6 @@ import { WallpaperGrid } from "@/components/wallpaper-grid";
 import { TagChips } from "@/components/tag-chips";
 import { ImageWithTags, Tag } from "@/types/database";
 import { Loader2 } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { cn } from "@/lib/utils";
 
 interface InitialData {
   images: ImageWithTags[];
