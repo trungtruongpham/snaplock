@@ -1,89 +1,10 @@
 "use client";
 
-import Image from "next/image";
-import { Heart, Download, Loader2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { cn, downloadImage } from "@/lib/utils";
+import { Loader2 } from "lucide-react";
 import { CloudinaryImage } from "@/lib/cloudinary";
 import { useState, useEffect } from "react";
-import { useToast } from "@/hooks/use-toast";
-import type { ImageWithTags, Tag } from "@/types/database";
-
-interface WallpaperCardProps {
-  image: ImageWithTags;
-  isLiked?: boolean;
-  onLike?: () => void;
-}
-
-function WallpaperCard({ image, isLiked = false, onLike }: WallpaperCardProps) {
-  const [isDownloading, setIsDownloading] = useState(false);
-  const { toast } = useToast();
-
-  const handleDownload = async () => {
-    setIsDownloading(true);
-    try {
-      const filename = `${image.public_id.split("/").pop()}.jpg`;
-      await downloadImage(image.secure_url, filename);
-      toast({
-        title: "Success",
-        description: "Image downloaded successfully",
-      });
-    } catch (error) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: `Failed to download image. ${error}`,
-      });
-    } finally {
-      setIsDownloading(false);
-    }
-  };
-
-  return (
-    <div className="group relative rounded-lg overflow-hidden">
-      <Image
-        src={image.secure_url}
-        alt={image.title || image.public_id}
-        width={image.width}
-        height={image.height}
-        sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, 25vw"
-        className="object-cover transition-transform group-hover:scale-105"
-        style={{ position: "relative" }}
-      />
-      {image.tags && image.tags.length > 0 && (
-        <div className="absolute top-2 left-2 flex flex-wrap gap-1 max-w-[80%]">
-          {image.tags.slice(0, 3).map((tag: Tag) => (
-            <span
-              key={tag.id}
-              className="px-2 py-1 text-xs rounded-full bg-black/60 text-white backdrop-blur-sm"
-            >
-              {tag.name}
-            </span>
-          ))}
-        </div>
-      )}
-      <div className="absolute bottom-2 right-2 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-        <Button
-          variant="secondary"
-          size="icon"
-          onClick={handleDownload}
-          disabled={isDownloading}
-        >
-          {isDownloading ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <Download className="h-4 w-4" />
-          )}
-        </Button>
-        <Button variant="secondary" size="icon" onClick={onLike}>
-          <Heart
-            className={cn("w-5 h-5", isLiked && "fill-current text-red-500")}
-          />
-        </Button>
-      </div>
-    </div>
-  );
-}
+import type { ImageWithTags } from "@/types/database";
+import { WallpaperCard } from "@/components/wallpaper-card";
 
 function WallpaperCardSkeleton() {
   return (
@@ -106,13 +27,20 @@ function LoadingSpinner() {
 }
 
 // Accept both ImageWithTags and CloudinaryImage for backward compatibility
-type GridImageType = ImageWithTags | CloudinaryImage;
+type GridImageType = ImageWithTags | (CloudinaryImage & { id?: string });
+
+type LikeStatus = {
+  isLiked: boolean;
+  count: number;
+};
 
 interface WallpaperGridProps {
   images: GridImageType[];
   isLoading?: boolean;
   isFetchingMore?: boolean;
   hasMore?: boolean;
+  likesStatus?: Record<string, LikeStatus>;
+  onToggleLike?: (imageId: string) => Promise<void>;
 }
 
 export function WallpaperGrid({
@@ -120,6 +48,8 @@ export function WallpaperGrid({
   isLoading = false,
   isFetchingMore = false,
   hasMore = false,
+  likesStatus = {},
+  onToggleLike = async () => {},
 }: WallpaperGridProps) {
   const [skeletonCount, setSkeletonCount] = useState(8);
 
@@ -195,14 +125,22 @@ export function WallpaperGrid({
           renderSkeletons()
         ) : (
           <>
-            {images.map((image, i) => (
-              <WallpaperCard
-                key={`image-${i}`}
-                image={image as ImageWithTags}
-                isLiked={false}
-                onLike={() => {}}
-              />
-            ))}
+            {images.map((image, i) => {
+              const imageId = image.id || `cloudinary-${image.public_id}`;
+              const likeStatus = likesStatus[imageId] || {
+                isLiked: false,
+                count: 0,
+              };
+
+              return (
+                <WallpaperCard
+                  key={`image-${i}`}
+                  image={image as ImageWithTags}
+                  likeStatus={likeStatus}
+                  onToggleLike={onToggleLike}
+                />
+              );
+            })}
           </>
         )}
       </div>

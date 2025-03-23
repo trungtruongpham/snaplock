@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { WallpaperGrid } from "@/components/wallpaper-grid";
 import { TagChips } from "@/components/tag-chips";
 import { ImageWithTags, Tag } from "@/types/database";
 import { Loader2 } from "lucide-react";
+import { useBatchImageLikes } from "@/hooks/use-batch-image-likes";
 
 interface InitialData {
   images: ImageWithTags[];
@@ -31,6 +32,12 @@ export function WallpaperGridWithFilters({
   const [hasMore, setHasMore] = useState(initialData.hasMore);
   const [error, setError] = useState<Error | null>(null);
   const [page, setPage] = useState(1);
+
+  // Extract image IDs for the batch likes hook
+  const imageIds = useMemo(() => images.map((img) => img.id), [images]);
+
+  // Use the batch likes hook
+  const { likes: likesStatus, toggleLike } = useBatchImageLikes(imageIds);
 
   // Handle tag toggle
   const handleTagToggle = (tagName: string) => {
@@ -123,7 +130,7 @@ export function WallpaperGridWithFilters({
   // Reset to page 1 when tags change
   useEffect(() => {
     setPage(1);
-  }, [selectedTags]);
+  }, [selectedTags, images.length]);
 
   // Setup intersection observer for infinite scrolling
   useEffect(() => {
@@ -203,12 +210,14 @@ export function WallpaperGridWithFilters({
         isLoading={isLoading}
         isFetchingMore={isFetchingMore}
         hasMore={hasMore}
+        onToggleLike={toggleLike}
+        likesStatus={likesStatus}
       />
 
       {isLoading && !isFetchingMore && (
         <div className="text-center py-10">
           <Loader2 className="h-10 w-10 animate-spin mx-auto text-primary" />
-          <p className="mt-2 text-muted-foreground">Loading images...</p>
+          <p className="mt-2 text-muted-foreground">Loading...</p>
         </div>
       )}
 

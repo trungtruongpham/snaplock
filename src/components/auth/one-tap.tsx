@@ -81,8 +81,8 @@ const OneTapComponent = ({
 
     // Check if user is already logged in
     const checkUserSession = async () => {
-      const { data } = await supabase.auth.getSession();
-      return !!data.session;
+      const { data } = await supabase.auth.getUser();
+      return !!data.user;
     };
 
     // Initialize Google One Tap

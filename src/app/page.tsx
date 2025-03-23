@@ -30,7 +30,7 @@ async function getInitialData() {
     // Get images with pagination
     const { data: imagesData, error: imagesError } = await supabase
       .from("images")
-      .select("*")
+      .select("*, likes_count")
       .order("created_at", { ascending: false })
       .range(0, limit - 1);
 

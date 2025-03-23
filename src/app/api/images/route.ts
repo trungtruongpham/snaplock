@@ -11,10 +11,33 @@ cloudinary.config({
   api_secret: process.env.NEXT_PUBLIC_CLOUDINARY_API_SECRET,
 });
 
-// Define interface for image tag relation
-interface ImageTagRelation {
+// Define type for the response from our joined query
+interface ImageWithRelations {
+  id: string;
+  title: string;
+  description?: string;
+  public_id: string;
+  secure_url: string;
+  width: number;
+  height: number;
+  format: string;
+  user_id?: string;
+  created_at: string;
+  updated_at: string;
+  likes_count?: number;
+  images_tags: Array<{
+    tag_id: string;
+    tags: Tag;
+  }>;
+  image_likes: Array<{
+    id: string;
+    user_id: string;
+  }>;
+}
+
+// Define type for the matchingImages response
+interface ImageMatch {
   image_id: string;
-  tag_id: string;
 }
 
 export async function GET(request: Request) {
@@ -44,228 +67,132 @@ export async function GET(request: Request) {
 
     const supabase = await createClient();
 
-    // Base query
-    let query = supabase
-      .from("images")
-      .select("*", { count: "exact", head: true });
+    // Get user ID from session (if authenticated) to check likes
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    const userId = user?.id;
 
-    // Apply tag filters if provided
+    // Build the query with all the related data in a single fetch
+    let imagesQuery = supabase
+      .from("images")
+      .select(
+        `
+        *,
+        images_tags!inner (
+          tag_id,
+          tags:tags (*)
+        ),
+        image_likes (
+          id,
+          user_id
+        )
+      `,
+        { count: "exact" }
+      )
+      .order("created_at", { ascending: false });
+
+    // Apply any tag filters if necessary
     if (tags.length > 0) {
-      // Get tag IDs for all tags
-      const { data: tagData, error: tagError } = await supabase
+      // Get tag IDs for the selected tags
+      const { data: tagData } = await supabase
         .from("tags")
         .select("id, name")
         .in("name", tags);
-
-      if (tagError || !tagData || tagData.length === 0) {
-        console.log("Tags not found:", tags);
-        return NextResponse.json({ images: [], hasMore: false });
-      }
-
-      const tagIds = tagData.map((tag) => tag.id);
-      console.log("Found tag IDs:", tagIds);
-
-      if (tags.length === 1) {
-        // Simple case: just one tag
-        const { data: imageIds, error: imageIdsError } = await supabase
-          .from("images_tags")
-          .select("image_id")
-          .eq("tag_id", tagIds[0]);
-
-        if (imageIdsError || !imageIds || imageIds.length === 0) {
-          console.log("No images found with tag:", tags[0]);
-          return NextResponse.json({ images: [], hasMore: false });
-        }
-
-        // Apply the filter to our query
-        query = query.in(
-          "id",
-          imageIds.map((item) => item.image_id)
-        );
-      } else {
-        // Multiple tags case: Find images that have ALL of the specified tags
-        // We'll use a more complex query based on intersections
-
-        // Get all image-tag relationships for these tags
-        const { data: imageTags, error: imageTagsError } = await supabase
-          .from("images_tags")
-          .select("image_id, tag_id")
-          .in("tag_id", tagIds);
-
-        if (imageTagsError || !imageTags || imageTags.length === 0) {
-          console.log("No images found with the specified tags");
-          return NextResponse.json({ images: [], hasMore: false });
-        }
-
-        // Group by image_id and count tag matches
-        const imageCounts: Record<string, number> = {};
-
-        imageTags.forEach((item) => {
-          if (!imageCounts[item.image_id]) {
-            imageCounts[item.image_id] = 0;
-          }
-          imageCounts[item.image_id]++;
-        });
-
-        // Find images that have all the tags (count matches number of tags)
-        const matchingImageIds = Object.entries(imageCounts)
-          .filter(([, count]) => count >= tags.length)
-          .map(([imageId]) => imageId);
-
-        if (matchingImageIds.length === 0) {
-          console.log("No images found with all the specified tags");
-          return NextResponse.json({ images: [], hasMore: false });
-        }
-
-        // Apply the filter to our query
-        query = query.in("id", matchingImageIds);
-      }
-    }
-
-    // Add ordering
-    query = query.order("created_at", { ascending: false });
-
-    // Get count for pagination
-    const { count, error: countError } = await query;
-
-    if (countError) {
-      throw countError;
-    }
-
-    console.log("Total matching images:", count);
-
-    // Now get the actual images with pagination
-    let imagesQuery = supabase
-      .from("images")
-      .select("*")
-      .order("created_at", { ascending: false });
-
-    // Apply the same tag filters if needed
-    if (tags.length > 0) {
-      // First get tag IDs again
-      const { data: tagData } = await supabase
-        .from("tags")
-        .select("id, slug")
-        .in("slug", tags);
 
       if (tagData && tagData.length > 0) {
         const tagIds = tagData.map((tag) => tag.id);
 
         if (tags.length === 1) {
-          // Simple case for one tag
-          const { data: imageIds } = await supabase
-            .from("images_tags")
-            .select("image_id")
-            .eq("tag_id", tagIds[0]);
-
-          if (imageIds && imageIds.length > 0) {
-            imagesQuery = imagesQuery.in(
-              "id",
-              imageIds.map((item) => item.image_id)
-            );
-          }
+          // For a single tag, use the foreign key relationship directly
+          imagesQuery = imagesQuery.eq("images_tags.tag_id", tagIds[0]);
         } else {
-          // Multiple tags case
-          const { data: imageTags } = await supabase
-            .from("images_tags")
-            .select("image_id, tag_id")
-            .in("tag_id", tagIds);
+          // For multiple tags, we need a more complex approach
+          // First get images with ALL the tags
+          const { data: matchingImages } = await supabase.rpc(
+            "get_images_with_all_tags",
+            { tag_ids: tagIds }
+          );
 
-          if (imageTags && imageTags.length > 0) {
-            // Group by image_id and count tag matches
-            const imageCounts: Record<string, number> = {};
-
-            imageTags.forEach((item) => {
-              if (!imageCounts[item.image_id]) {
-                imageCounts[item.image_id] = 0;
-              }
-              imageCounts[item.image_id]++;
+          if (!matchingImages || matchingImages.length === 0) {
+            return NextResponse.json({
+              images: [],
+              hasMore: false,
+              total: 0,
             });
-
-            // Find images that have all the tags
-            const matchingImageIds = Object.entries(imageCounts)
-              .filter(([, count]) => count >= tags.length)
-              .map(([imageId]) => imageId);
-
-            if (matchingImageIds.length > 0) {
-              imagesQuery = imagesQuery.in("id", matchingImageIds);
-            }
           }
+
+          // Then filter our main query to only include these images
+          const imageIds = matchingImages.map(
+            (img: ImageMatch) => img.image_id
+          );
+          imagesQuery = imagesQuery.in("id", imageIds);
         }
+      } else {
+        // No matching tags found
+        return NextResponse.json({
+          images: [],
+          hasMore: false,
+          total: 0,
+        });
       }
     }
 
     // Apply pagination
-    const { data: imagesData, error: imagesError } = await imagesQuery.range(
-      from,
-      to
-    );
+    const {
+      data: imagesData,
+      error: imagesError,
+      count,
+    } = await imagesQuery.range(from, to);
 
     if (imagesError) {
+      console.error("Error fetching images:", imagesError);
       throw imagesError;
     }
 
     if (!imagesData || imagesData.length === 0) {
-      console.log("No images found matching criteria");
-      return NextResponse.json({ images: [], hasMore: false });
+      return NextResponse.json({
+        images: [],
+        hasMore: false,
+        total: count || 0,
+      });
     }
 
-    // Fetch tags for these images in a separate query
-    const fetchedImageIds = imagesData.map((img) => img.id);
+    // Process the results to organize likes and tags
+    const processedImages = imagesData.map((img: ImageWithRelations) => {
+      // Extract tags from the joined data
+      const tags = img.images_tags
+        ? Array.from(
+            new Set(img.images_tags.map((it: { tags: Tag }) => it.tags))
+          )
+        : [];
 
-    // Get the image-tag relationships for these images
-    const { data: imageTagRelations, error: imageTagsError } = await supabase
-      .from("images_tags")
-      .select("image_id, tag_id")
-      .in("image_id", fetchedImageIds);
+      // Check if the current user has liked this image
+      const isLikedByUser = userId
+        ? img.image_likes.some(
+            (like: { user_id: string }) => like.user_id === userId
+          )
+        : false;
 
-    if (imageTagsError) {
-      throw imageTagsError;
-    }
+      // Count total likes
+      const likesCount = img.image_likes ? img.image_likes.length : 0;
 
-    // Get all the tag IDs
-    const tagIds = [
-      ...new Set((imageTagRelations || []).map((it) => it.tag_id)),
-    ];
-
-    // Fetch all tags if there are any
-    let tagsData: Tag[] = [];
-
-    if (tagIds.length > 0) {
-      const { data: fetchedTags, error: tagsError } = await supabase
-        .from("tags")
-        .select("*")
-        .in("id", tagIds);
-
-      if (tagsError) {
-        throw tagsError;
-      }
-
-      tagsData = fetchedTags || [];
-    }
-
-    // Now combine everything
-    const imagesWithTags = imagesData.map((image) => {
-      // Find all tag IDs for this image
-      const thisImageTagIds = (imageTagRelations || [])
-        .filter((it: ImageTagRelation) => it.image_id === image.id)
-        .map((it: ImageTagRelation) => it.tag_id);
-
-      // Find the tag objects for these IDs
-      const thisImageTags = tagsData.filter((tag: Tag) =>
-        thisImageTagIds.includes(tag.id)
-      );
-
+      // Create the final image object
       return {
-        ...image,
-        tags: thisImageTags,
+        ...img,
+        tags,
+        is_liked_by_user: isLikedByUser,
+        likes_count: likesCount,
+        // Remove the raw relationships from the final object
+        images_tags: undefined,
+        image_likes: undefined,
       };
     });
 
     const hasMore = count ? from + pageSize < count : false;
 
     return NextResponse.json({
-      images: imagesWithTags,
+      images: processedImages,
       hasMore,
       total: count,
     });
@@ -320,9 +247,9 @@ export async function POST(request: Request) {
 
     // Get user ID from session (if authenticated)
     const {
-      data: { session },
-    } = await supabase.auth.getSession();
-    const userId = session?.user?.id;
+      data: { user },
+    } = await supabase.auth.getUser();
+    const userId = user?.id;
 
     // Save image metadata to Supabase
     const { data: imageData, error: imageError } = await supabase
@@ -336,6 +263,7 @@ export async function POST(request: Request) {
         height: uploadResult.height,
         format: uploadResult.format,
         user_id: userId,
+        likes_count: 0, // Initialize likes count
       })
       .select()
       .single();
